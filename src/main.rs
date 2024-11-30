@@ -1,19 +1,18 @@
+use std::io::{stdin, stdout, Write};
 mod tokenizer;
-use std::io::{ stdin, stdout, Write };
 use crate::tokenizer::Tokenizer;
 
-fn main(){
+fn main() {
     println!("Welcome to the PlecakDB monitor");
     println!("Commands ends with ';'");
     println!("Type .help for help");
 
     let mut multiline_buffer = String::new();
-    let mut command_log: Vec<String>  = Vec::new();
-    loop{
-        if multiline_buffer.is_empty(){
+    let mut command_log: Vec<String> = Vec::new();
+    loop {
+        if multiline_buffer.is_empty() {
             print!("PlecakDB [(dbname)]> ");
-        }
-        else{
+        } else {
             print!("...>  ");
         }
         let _ = stdout().flush().unwrap();
@@ -21,25 +20,25 @@ fn main(){
         let mut input = String::new();
         stdin().read_line(&mut input).expect("Input error");
         let input = input.trim();
-        if input.is_empty(){
+        if input.is_empty() {
             continue;
         }
 
-        if input.starts_with('.') && multiline_buffer.is_empty(){
-            match input{
+        if input.starts_with('.') && multiline_buffer.is_empty() {
+            match input {
                 ".exit" => {
                     println!("Goodbye!");
                     break;
-                } 
-                ".help" =>  {
+                }
+                ".help" => {
                     println!("Available commands:");
                     println!("  .exit      - Exit the REPL");
                     println!("  .history   - Show history of commands");
                     println!("  All other inputs are treated as SQL commands.");
                 }
                 ".history" => {
-                    for i in (0..command_log.len()).rev(){
-                        println!("{}.  {}", i+1, command_log[i]);
+                    for i in (0..command_log.len()).rev() {
+                        println!("{}.  {}", i + 1, command_log[i]);
                     }
                 }
                 _ => {
@@ -48,19 +47,18 @@ fn main(){
             }
             continue;
         }
-        if !input.ends_with(';'){
+        if !input.ends_with(';') {
             multiline_buffer.push_str(input);
             multiline_buffer.push(' ');
             continue;
-        } 
-        else{
+        } else {
             multiline_buffer.push_str(input);
         }
         let command = multiline_buffer.trim().to_string();
         multiline_buffer.clear();
         let mut tokenizer = Tokenizer::new(command.as_str());
         let tokens = tokenizer.tokenize();
-        for token in tokens{
+        for token in tokens {
             println!("{:?}", token);
         }
         command_log.push(command);

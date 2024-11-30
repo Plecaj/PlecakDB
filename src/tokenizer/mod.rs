@@ -12,35 +12,39 @@ pub enum Token {
     Delimiter(char),
 }
 
-pub struct Tokenizer<'a>{
+pub struct Tokenizer<'a> {
     input: &'a str,
     current_position: usize,
     tokens: Vec<Token>,
 }
 
-impl<'a> Tokenizer<'a>{
-    pub fn new(input: &'a str) -> Self{
-        return Tokenizer { input, current_position: 0, tokens: Vec::new() }
+impl<'a> Tokenizer<'a> {
+    pub fn new(input: &'a str) -> Self {
+        return Tokenizer {
+            input,
+            current_position: 0,
+            tokens: Vec::new(),
+        };
     }
 
-    fn current_char(&self) -> Option<char>{
+    fn current_char(&self) -> Option<char> {
         self.input.get(self.current_position..)?.chars().next()
     }
 
-    fn advance(&mut self){
-        self.current_position+=1;
+    fn advance(&mut self) {
+        self.current_position += 1;
     }
-    
+
     fn handle_literals(&mut self) {
         let quote_char = self.current_char().unwrap();
         self.advance();
-    
+
         let start = self.current_position;
         while let Some(c) = self.current_char() {
             if c == quote_char {
                 let literal = self.input[start..self.current_position].to_string();
                 self.tokens.push(Token::StringLiteral(literal));
-                self.advance(); 
+                self.advance();
                 return;
             }
             self.advance();
@@ -67,31 +71,28 @@ impl<'a> Tokenizer<'a>{
         }
     }
 
-    fn handle_numeric(&mut self){
+    fn handle_numeric(&mut self) {
         let start = self.current_position;
         let mut has_dot = false;
-        while let Some(c) = self.current_char(){
-            if c.is_digit(10){
+        while let Some(c) = self.current_char() {
+            if c.is_digit(10) {
                 self.advance();
-            }
-            else if c=='.' && !has_dot{
+            } else if c == '.' && !has_dot {
                 has_dot = true;
                 self.advance();
-            }
-            else{
+            } else {
                 break;
             }
         }
-        if has_dot{
+        if has_dot {
             let number: Result<f64, _> = self.input[start..self.current_position].parse();
-            match number{
+            match number {
                 Ok(value) => self.tokens.push(Token::Float(value)),
-                Err(_) => panic!("Falied to parse float in tokenizer!")
+                Err(_) => panic!("Falied to parse float in tokenizer!"),
             }
-        }
-        else{
+        } else {
             let number: Result<i64, _> = self.input[start..self.current_position].parse();
-            match number{
+            match number {
                 Ok(value) => self.tokens.push(Token::Number(value)),
                 Err(_) => panic!("Failed to parse int in tokenizer!"),
             }
@@ -100,25 +101,25 @@ impl<'a> Tokenizer<'a>{
 
     fn handle_operator(&mut self, initial_char: char) {
         let mut operator = initial_char.to_string();
-        self.advance(); 
-    
+        self.advance();
+
         if let Some(next_char) = self.current_char() {
             if next_char == '=' {
                 operator.push(next_char);
-                self.advance(); 
+                self.advance();
             }
         }
         self.tokens.push(Token::Operator(operator));
     }
 
-    fn handle_logical_operator(&mut self, initial_char: char){
+    fn handle_logical_operator(&mut self, initial_char: char) {
         let mut operator = initial_char.to_string();
-        self.advance(); 
+        self.advance();
 
         if let Some(next_char) = self.current_char() {
             if next_char == initial_char {
                 operator.push(next_char);
-                self.advance(); 
+                self.advance();
             }
         }
         self.tokens.push(Token::Operator(operator));
@@ -140,13 +141,11 @@ impl<'a> Tokenizer<'a>{
                 Some(c) if c == '<' || c == '>' => self.handle_operator(c),
                 Some(c) if c == '&' || c == '|' => self.handle_logical_operator(c),
                 Some(c) if c.is_alphabetic() => self.handle_aplhabetic(),
-                Some(c) if c.is_digit(10) => self.handle_numeric(), 
+                Some(c) if c.is_digit(10) => self.handle_numeric(),
                 Some(_) => panic!("Unrecognised Token!"),
                 None => return &self.tokens,
             }
         }
         &self.tokens
     }
-    
 }
-
