@@ -1,6 +1,6 @@
 use std::io::{stdin, stdout, Write};
 mod tokenizer;
-use crate::tokenizer::Tokenizer;
+use crate::tokenizer::*;
 
 fn main() {
     println!("Welcome to the PlecakDB monitor");
