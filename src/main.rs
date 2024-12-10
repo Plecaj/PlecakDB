@@ -1,8 +1,10 @@
 use std::io::{stdin, stdout, Write};
 mod tokenizer;
 use crate::tokenizer::*;
+mod parser;
+use crate::parser::*;
 
-fn main() {
+fn main() -> Result<(), String>{
     println!("Welcome to the PlecakDB monitor");
     println!("Commands ends with ';'");
     println!("Type .help for help");
@@ -28,7 +30,7 @@ fn main() {
             match input {
                 ".exit" => {
                     println!("Goodbye!");
-                    break;
+                    break Ok(());
                 }
                 ".help" => {
                     println!("Available commands:");
@@ -57,10 +59,10 @@ fn main() {
         let command = multiline_buffer.trim().to_string();
         multiline_buffer.clear();
         let mut tokenizer = Tokenizer::new(command.as_str());
-        let tokens = tokenizer.tokenize();
-        for token in tokens {
-            println!("{:?}", token);
-        }
+        let tokens = tokenizer.tokenize()?;
+        let mut parser = Parser::new(tokens);
+        let query = parser.parse()?;
+        println!("{:?}", query);
         command_log.push(command);
     }
 }
