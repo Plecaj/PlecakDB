@@ -63,7 +63,7 @@ impl<'a> Tokenizer<'a> {
             }
         }
 
-        let keywords: [&str; 6] = ["SELECT", "FROM", "WHERE", "UPDATE", "DELETE", "INSERT"];
+        let keywords: [&str; 11] = ["SELECT", "FROM", "WHERE", "ORDER", "GROUP", "DELETE", "UPDATE", "SET", "INSERT", "INTO", "VALUES"];
         let phrase = self.input[start..self.current_position].to_string();
         let upper_phrase = phrase.to_uppercase();
         if keywords.contains(&upper_phrase.as_str()) {

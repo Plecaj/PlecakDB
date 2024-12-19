@@ -4,6 +4,9 @@ use crate::tokenizer::Token;
 #[allow(dead_code)]
 pub enum Query {
     Select(SelectQuery),
+    Insert(InsertQuery),
+    Update(UpdateQuery),
+    Delete(DeleteQuery),
 }
 
 #[derive(Debug)]
@@ -16,11 +19,41 @@ pub struct SelectQuery {
 
 #[derive(Debug)]
 #[allow(dead_code)]
+pub struct InsertQuery{
+    table_name: Table,
+    columns: Vec<Column>,
+    values: Vec<Value>
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct DeleteQuery{
+    table_name: Table,
+    where_clause: Option<Condition>
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct UpdateQuery{
+    table_name: Table,
+    changes: Vec<UpdateSet>,
+    where_clause: Option<Condition>
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct UpdateSet{
+    column: Column,
+    value: Value,
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
 pub struct Column {
     name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Table {
     name: String,
@@ -42,6 +75,7 @@ pub enum ConditionEnum {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum Operator {
     Equal,
     NotEqual,
@@ -77,6 +111,9 @@ impl <'a>Parser<'a>{
         match start {
             Token::Keyword(ref keyword) => match keyword.as_str() {
                 "SELECT" => Ok(Query::Select(self.handle_select()?)),
+                "INSERT" => Ok(Query::Insert(self.handle_insert()?)),
+                "UPDATE" => Ok(Query::Update(self.handle_update()?)),
+                "DELETE" => Ok(Query::Delete(self.handle_delete()?)),
                 _ => Err("Invalid query type".to_string()),
             },
             _ => Err("Expected keyword token at the beginning!".to_string()),
@@ -86,7 +123,7 @@ impl <'a>Parser<'a>{
     fn handle_select(&mut self) -> Result<SelectQuery, String> {
         let columns = self.parse_column_list()?;
 
-        self.consume_keyword(Token::Keyword("FROM".to_string()))?;
+        self.consume_token(Token::Keyword("FROM".to_string()))?;
         let table = self.parse_table()?;
 
         let where_clause = if self.check_keyword("WHERE") {
@@ -101,6 +138,121 @@ impl <'a>Parser<'a>{
             table_name: table,
             where_clause,
         })
+    }
+
+    fn handle_insert(&mut self) -> Result<InsertQuery, String>{
+        self.consume_token(Token::Keyword("INTO".to_string()))?;
+        let table = self.parse_table()?;
+
+        self.consume_token(Token::Delimiter('('))?;
+        let columns = self.parse_column_list()?;
+        self.consume_token(Token::Delimiter(')'))?;
+
+        self.consume_token(Token::Keyword("VALUES".to_string()))?;
+        self.consume_token(Token::Delimiter('('))?;
+        let values = self.parse_value_list()?;
+        self.consume_token(Token::Delimiter(')'))?;
+
+        Ok(InsertQuery {
+            table_name: table,
+            columns: columns, 
+            values: values
+        })
+    }
+
+    fn handle_update(&mut self) -> Result<UpdateQuery, String>{
+        let table = self.parse_table()?;
+
+        self.consume_token(Token::Keyword("SET".to_string()))?;
+        let update_changes = self.parse_set_list()?;
+
+        let where_clause = if self.check_keyword("WHERE") {
+            self.advance();
+            Some(self.parse_condition()?)
+        } else {
+            None
+        };
+    
+        Ok(UpdateQuery {
+            table_name: table,
+            changes: update_changes,
+            where_clause,
+        })
+    }
+
+    fn handle_delete(&mut self) -> Result<DeleteQuery, String> {
+        self.consume_token(Token::Keyword("FROM".to_string()))?;
+        let table = self.parse_table()?;
+        
+        let where_clause = if self.check_keyword("WHERE") {
+            self.advance();
+            Some(self.parse_condition()?)
+        } else {
+            None
+        };
+        
+        Ok(DeleteQuery {
+            table_name: table,
+            where_clause,
+        })
+    }
+
+    fn parse_set_list(&mut self) -> Result<Vec<UpdateSet>, String>{
+        let mut changes = Vec::new();
+
+        loop {
+            changes.push(self.parse_set()?);
+            if self.peek() == &Token::Delimiter(','){
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        Ok(changes)
+    }
+
+    fn parse_set(&mut self) -> Result<UpdateSet, String>{
+        let column = self.parse_column()?;
+
+        if let Token::Operator(op) = self.advance() {
+            if op != "=" {
+                return Err("Expected '=' in SET clause".to_string());
+            }
+        } else {
+            return Err("Expected '=' operator in SET clause".to_string());
+        }
+
+        let value = self.parse_value()?;
+
+        Ok(UpdateSet{
+            column: column,
+            value: value,
+        })      
+    }
+
+    fn parse_value_list(&mut self) -> Result<Vec<Value>, String> {
+        let mut values = Vec::new();
+
+        loop {
+            values.push(self.parse_value()?);
+            if self.peek() == &Token::Delimiter(',') {
+                self.advance(); 
+            } else {
+                break;
+            }
+        }
+
+        Ok(values)
+    }
+
+    fn parse_value(&mut self) -> Result<Value, String>{
+        let token = self.advance();
+        match token{
+            Token::Float(value) => return Ok(Value::Float(value)),
+            Token::Number(value) => return Ok(Value::Integer(value)),
+            Token::StringLiteral(text) =>  return Ok(Value::Text(text)),
+            _ => return Err("Expected value".to_string()),
+        }
     }
 
     fn parse_column_list(&mut self) -> Result<Vec<Column>, String> {
@@ -190,7 +342,7 @@ impl <'a>Parser<'a>{
         }
     }
 
-    fn consume_keyword(&mut self, keyword: Token) -> Result<(), String> {
+    fn consume_token(&mut self, keyword: Token) -> Result<(), String> {
         if self.check(&keyword) {
             self.advance();
             Ok(())
